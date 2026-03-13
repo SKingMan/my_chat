@@ -1194,7 +1194,7 @@ throw new Error(`API 请求失败: ${response.status}`);
                 const isActive = session.id === appState.currentSessionId;
                 
                 return `
-                <div class="chat-session-item px-3 py-2.5 hover:bg-gray-100 rounded-lg cursor-pointer text-sm ${isActive ? 'bg-blue-50 border-l-3 border-blue-500' : ''} group"
+                <div class="chat-session-item px-3 py-2.5 hover:bg-gray-100 rounded-lg cursor-pointer text-sm ${isActive ? 'bg-blue-50 border-l-3 border-blue-500' : ''} group relative"
                     data-session-id="${session.id}"
                     onclick="loadSession('${session.id}')">
                     <div class="flex items-center gap-2">
@@ -1202,6 +1202,13 @@ throw new Error(`API 请求失败: ${response.status}`);
                         <span class="truncate text-gray-700 ${isActive ? 'font-medium' : ''}">${session.title}</span>
                     </div>
                     <div class="text-xs text-gray-400 mt-1 ml-3.5">${dateStr}</div>
+                    <button class="delete-session-btn absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:bg-red-100 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                        onclick="event.stopPropagation(); deleteSession('${session.id}')"
+                        title="删除会话">
+                        <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                    </button>
                 </div>
             `}).join('');
             
@@ -1210,6 +1217,27 @@ throw new Error(`API 请求失败: ${response.status}`);
             } else {
                 elements.chatHistoryList.innerHTML = html;
             }
+        }
+
+        // 删除会话
+        function deleteSession(sessionId) {
+            if (!confirm('确定要删除这个会话吗？')) return;
+            
+            const sessions = JSON.parse(localStorage.getItem('chat_sessions') || '[]');
+            const newSessions = sessions.filter(s => s.id !== sessionId);
+            localStorage.setItem('chat_sessions', JSON.stringify(newSessions));
+            
+            // 如果删除的是当前会话，清空当前会话
+            if (appState.currentSessionId === sessionId) {
+                appState.currentSessionId = null;
+                appState.messages = [];
+                appState.toc = [];
+                elements.messagesContainer.innerHTML = '';
+                elements.messagesContainer.appendChild(elements.welcomeMessage);
+                elements.welcomeMessage.style.display = 'flex';
+            }
+            
+            renderChatHistory(newSessions);
         }
 
         // 加载会话
