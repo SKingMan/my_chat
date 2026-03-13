@@ -245,6 +245,27 @@
             background: linear-gradient(135deg, #0052D9 0%, #4364E7 100%);
             color: white;
         }
+
+        .copy-btn {
+            padding: 4px 8px;
+            font-size: 12px;
+            border-radius: 6px;
+            background: #f3f4f6;
+            color: #6b7280;
+            border: none;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+
+        .copy-btn:hover {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .copy-btn.copied {
+            background: #dcfce7;
+            color: #16a34a;
+        }
         
         /* 设置面板 */
         .settings-panel {
@@ -400,7 +421,6 @@
                             rows="1"
                             class="flex-1 max-h-32 resize-none outline-none text-gray-800 placeholder-gray-400"
                             placeholder="输入消息... (Enter 发送, Shift+Enter 换行)"
-                            style="field-sizing: content;"
                         ></textarea>
                         <div class="flex items-center gap-1">
                             <button id="reasoningBtn" class="feature-btn p-2 hover:bg-gray-100 rounded-lg transition" title="深度思考">
@@ -853,6 +873,19 @@ throw new Error(`API 请求失败: ${response.status}`);
                 
                 appState.messages.push({ role: 'assistant', content: aiContent, id: aiMessageId });
                 
+                // 添加复制按钮到AI消息
+                const aiMessageEl = document.getElementById(aiMessageId);
+                if (aiMessageEl) {
+                    const wrapper = aiMessageEl.querySelector('.message-wrapper');
+                    if (wrapper && !wrapper.querySelector('.copy-btn')) {
+                        const copyBtn = document.createElement('button');
+                        copyBtn.className = 'copy-btn';
+                        copyBtn.textContent = '复制';
+                        copyBtn.onclick = function() { copyMessage(this, aiMessageId); };
+                        wrapper.appendChild(copyBtn);
+                    }
+                }
+                
                 // 保存会话到历史
                 saveCurrentSession();
                 
@@ -863,6 +896,14 @@ throw new Error(`API 请求失败: ${response.status}`);
                     const contentDiv = aiMessageEl.querySelector('.message-content');
                     contentDiv.innerHTML = `<div class="text-red-500">错误: ${error.message}</div>
                         <button class="mt-2 text-sm text-blue-500 hover:underline" onclick="retryMessage('${userMessageId}')">重试</button>`;
+                    const wrapper = aiMessageEl.querySelector('.message-wrapper');
+                    if (wrapper && !wrapper.querySelector('.copy-btn')) {
+                        const copyBtn = document.createElement('button');
+                        copyBtn.className = 'copy-btn';
+                        copyBtn.textContent = '复制';
+                        copyBtn.onclick = function() { copyMessage(this, aiMessageId); };
+                        wrapper.appendChild(copyBtn);
+                    }
                 }
             } finally {
                 appState.isStreaming = false;
@@ -929,16 +970,45 @@ throw new Error(`API 请求失败: ${response.status}`);
                 messageContent = `<p class="whitespace-pre-wrap">${content}</p>`;
             }
             
+            let copyButton = '';
+            if (!isLoading || role === 'user') {
+                copyButton = `<button class="copy-btn" onclick="copyMessage(this, '${messageId}')">复制</button>`;
+            }
+            
             messageDiv.innerHTML = `
                 <div class="avatar ${avatarClass}">${avatarText}</div>
-                <div class="${bgClass} rounded-2xl px-4 py-3 shadow-sm max-w-[75%] ${role === 'user' ? 'rounded-br-md' : 'rounded-bl-md'}">
+                <div class="message-wrapper flex flex-col ${bgClass} rounded-2xl px-4 py-3 shadow-sm max-w-[75%] ${role === 'user' ? 'rounded-br-md' : 'rounded-bl-md'}">
                     <div class="message-content markdown-body">${messageContent}</div>
+                    ${copyButton}
                 </div>
             `;
             
             elements.messagesContainer.appendChild(messageDiv);
             
             return messageId;
+        }
+
+        // 复制消息
+        function copyMessage(btn, messageId) {
+            const messageEl = document.getElementById(messageId);
+            if (!messageEl) return;
+            
+            const contentDiv = messageEl.querySelector('.message-content');
+            let textToCopy = contentDiv.textContent || contentDiv.innerText;
+            
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                const originalText = btn.textContent;
+                btn.textContent = '已复制';
+                btn.classList.add('copied');
+                
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.classList.remove('copied');
+                }, 1500);
+            }).catch(err => {
+                console.error('复制失败:', err);
+                btn.textContent = '复制失败';
+            });
         }
 
         // 添加目录项
